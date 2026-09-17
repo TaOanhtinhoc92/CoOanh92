@@ -1,0 +1,6 @@
+{
+  "name": "Trợ lý Dạy học Công nghệ 5",
+  "description": "Ứng dụng trợ lý bài giảng điện tử và dạy học tương tác môn Công nghệ lớp 5 theo bộ sách Kết nối tri thức với cuộc sống",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
