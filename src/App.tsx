@@ -255,6 +255,8 @@ export default function App() {
         isTeacherMode={isTeacherMode}
         onToggleTeacherMode={() => setIsTeacherMode(!isTeacherMode)}
         onOpenCurriculumTree={() => setIsCurriculumOpen(true)}
+        onSelectPeriod={handleSelectPeriod}
+        completedPeriods={completedPeriods}
         onPrevPeriod={handlePrevPeriod}
         onNextPeriod={handleNextPeriod}
         hasPrev={hasPrev}
