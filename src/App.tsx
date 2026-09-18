@@ -16,6 +16,7 @@ import { LuyenTapView } from './components/phases/LuyenTapView';
 import { ThucHanhView } from './components/phases/ThucHanhView';
 import { VanDungView } from './components/phases/VanDungView';
 import { GiaoAnView } from './components/phases/GiaoAnView';
+import { PhaseMediaGallery } from './components/activities/PhaseMediaGallery';
 import {
   ChevronLeft,
   ChevronRight,
@@ -35,7 +36,7 @@ export default function App() {
   const CURRENT_PERIOD_KEY = 'tro_ly_cong_nghe_5_current_period';
   const COMPLETED_PERIODS_KEY = 'tro_ly_cong_nghe_5_completed';
   const TEACHER_MODE_KEY = 'tro_ly_cong_nghe_5_teacher_mode';
-  const FONT_SIZE_KEY = 'tro_ly_cong_nghe_5_font_size';
+  const FONT_SIZE_PERCENT_KEY = 'tro_ly_cong_nghe_5_font_size_percent';
 
   // State
   const [currentPeriodId, setCurrentPeriodId] = useState<string>(() => {
@@ -56,8 +57,14 @@ export default function App() {
     }
   });
 
-  const [fontSizeLevel, setFontSizeLevel] = useState<'normal' | 'large' | 'xlarge'>(() => {
-    return (localStorage.getItem(FONT_SIZE_KEY) as 'normal' | 'large' | 'xlarge') || 'normal';
+  // Font size percentage state (85% to 160%)
+  const [fontSizePercent, setFontSizePercent] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(FONT_SIZE_PERCENT_KEY);
+      return saved ? parseInt(saved, 10) : 100;
+    } catch {
+      return 100;
+    }
   });
 
   const [isCurriculumOpen, setIsCurriculumOpen] = useState(false);
@@ -77,8 +84,9 @@ export default function App() {
   }, [completedPeriods]);
 
   useEffect(() => {
-    localStorage.setItem(FONT_SIZE_KEY, fontSizeLevel);
-  }, [fontSizeLevel]);
+    localStorage.setItem(FONT_SIZE_PERCENT_KEY, String(fontSizePercent));
+    document.documentElement.style.fontSize = `${fontSizePercent}%`;
+  }, [fontSizePercent]);
 
   // Handle Fullscreen change
   useEffect(() => {
@@ -99,20 +107,33 @@ export default function App() {
     }
   };
 
-  // Active period & lesson lookup
-  const currentData = getPeriodById(currentPeriodId) || {
-    period: allPeriods[0],
-    lesson: allLessons[0]
+  // Font size actions
+  const handleIncreaseFontSize = () => {
+    setFontSizePercent((prev) => Math.min(prev + 15, 160));
   };
-  const { period: currentPeriod, lesson: currentLesson } = currentData;
+
+  const handleDecreaseFontSize = () => {
+    setFontSizePercent((prev) => Math.max(prev - 15, 85));
+  };
+
+  const handleResetFontSize = () => {
+    setFontSizePercent(100);
+  };
+
+  // Current period and lesson resolution
+  const resolved = getPeriodById(currentPeriodId);
+  const currentPeriod = resolved ? resolved.period : allPeriods[0];
+  const currentLesson = resolved ? resolved.lesson : allLessons[0];
 
   const currentIndex = allPeriods.findIndex((p) => p.id === currentPeriod.id);
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < allPeriods.length - 1;
 
+  // Period navigation
   const handlePrevPeriod = () => {
     if (hasPrev) {
-      setCurrentPeriodId(allPeriods[currentIndex - 1].id);
+      const prevPeriod = allPeriods[currentIndex - 1];
+      setCurrentPeriodId(prevPeriod.id);
       setActivePhase('khoi_dong');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -120,21 +141,31 @@ export default function App() {
 
   const handleNextPeriod = () => {
     if (hasNext) {
-      setCurrentPeriodId(allPeriods[currentIndex + 1].id);
+      const nextPeriod = allPeriods[currentIndex + 1];
+      setCurrentPeriodId(nextPeriod.id);
       setActivePhase('khoi_dong');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const handleToggleComplete = () => {
-    if (completedPeriods.includes(currentPeriod.id)) {
-      setCompletedPeriods((prev) => prev.filter((id) => id !== currentPeriod.id));
-    } else {
-      setCompletedPeriods((prev) => [...prev, currentPeriod.id]);
-    }
+  const handleSelectPeriod = (periodId: string) => {
+    setCurrentPeriodId(periodId);
+    setActivePhase('khoi_dong');
+    setIsCurriculumOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Phase navigation flow
+  const handleToggleComplete = () => {
+    setCompletedPeriods((prev) => {
+      if (prev.includes(currentPeriod.id)) {
+        return prev.filter((id) => id !== currentPeriod.id);
+      } else {
+        return [...prev, currentPeriod.id];
+      }
+    });
+  };
+
+  // Flow through pedagogical phases in order
   const phaseOrder: PedagogicalPhase[] = [
     'khoi_dong',
     'kham_pha',
@@ -168,6 +199,28 @@ export default function App() {
     }
   };
 
+  // Phase friendly title label
+  const getPhaseLabel = (phase: PedagogicalPhase): string => {
+    switch (phase) {
+      case 'khoi_dong':
+        return 'Khởi động';
+      case 'kham_pha':
+        return 'Khám phá kiến thức mới';
+      case 'thao_luan':
+        return 'Thảo luận nhóm';
+      case 'luyen_tap':
+        return 'Luyện tập';
+      case 'thuc_hanh':
+        return 'Thực hành & Trải nghiệm';
+      case 'van_dung':
+        return 'Vận dụng';
+      case 'giao_an':
+        return 'Kế hoạch bài dạy (Giáo án)';
+      default:
+        return 'Bài học';
+    }
+  };
+
   // Keyboard navigation shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -190,18 +243,11 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentIndex, hasNext, hasPrev]);
 
-  // Font size multiplier class
-  const getFontSizeClass = () => {
-    if (fontSizeLevel === 'large') return 'text-[115%]';
-    if (fontSizeLevel === 'xlarge') return 'text-[130%]';
-    return '';
-  };
-
   const isCurrentPeriodCompleted = completedPeriods.includes(currentPeriod.id);
   const stats = getCurriculumStats();
 
   return (
-    <div className={`min-h-screen bg-slate-100/70 text-slate-900 font-sans ${getFontSizeClass()}`}>
+    <div className="min-h-screen bg-slate-100/70 text-slate-900 font-sans">
       {/* Top Header */}
       <Header
         currentLesson={currentLesson}
@@ -214,8 +260,10 @@ export default function App() {
         hasPrev={hasPrev}
         hasNext={hasNext}
         isCompleted={isCurrentPeriodCompleted}
-        fontSizeLevel={fontSizeLevel}
-        onChangeFontSize={setFontSizeLevel}
+        fontSizePercent={fontSizePercent}
+        onIncreaseFontSize={handleIncreaseFontSize}
+        onDecreaseFontSize={handleDecreaseFontSize}
+        onResetFontSize={handleResetFontSize}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
       />
@@ -326,6 +374,13 @@ export default function App() {
           )}
         </section>
 
+        {/* Phương tiện, hình ảnh, video, link bổ sung cho từng phần học */}
+        <PhaseMediaGallery
+          periodId={currentPeriod.id}
+          phaseId={activePhase}
+          phaseLabel={getPhaseLabel(activePhase)}
+        />
+
         {/* Bottom Navigation Toolbar */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between flex-wrap gap-4">
           <button
@@ -364,17 +419,14 @@ export default function App() {
         </div>
       </main>
 
-      {/* Curriculum Tree Drawer/Modal */}
+      {/* Curriculum Tree Drawer / Modal */}
       <CurriculumTreeModal
         isOpen={isCurriculumOpen}
         onClose={() => setIsCurriculumOpen(false)}
+        lessons={allLessons}
         currentPeriodId={currentPeriod.id}
-        onSelectPeriod={(periodId) => {
-          setCurrentPeriodId(periodId);
-          setActivePhase('khoi_dong');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        completedPeriods={completedPeriods}
+        completedPeriodIds={completedPeriods}
+        onSelectPeriod={handleSelectPeriod}
       />
     </div>
   );

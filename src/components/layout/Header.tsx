@@ -7,9 +7,7 @@ import {
   GraduationCap,
   Maximize2,
   Minimize2,
-  CheckCircle2,
-  Type,
-  Presentation
+  CheckCircle2
 } from 'lucide-react';
 
 interface Props {
@@ -23,8 +21,10 @@ interface Props {
   hasPrev: boolean;
   hasNext: boolean;
   isCompleted: boolean;
-  fontSizeLevel: 'normal' | 'large' | 'xlarge';
-  onChangeFontSize: (level: 'normal' | 'large' | 'xlarge') => void;
+  fontSizePercent: number;
+  onIncreaseFontSize: () => void;
+  onDecreaseFontSize: () => void;
+  onResetFontSize: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
 }
@@ -40,23 +40,13 @@ export const Header: React.FC<Props> = ({
   hasPrev,
   hasNext,
   isCompleted,
-  fontSizeLevel,
-  onChangeFontSize,
+  fontSizePercent,
+  onIncreaseFontSize,
+  onDecreaseFontSize,
+  onResetFontSize,
   isFullscreen,
   onToggleFullscreen
 }) => {
-  const cycleFontSize = () => {
-    if (fontSizeLevel === 'normal') onChangeFontSize('large');
-    else if (fontSizeLevel === 'large') onChangeFontSize('xlarge');
-    else onChangeFontSize('normal');
-  };
-
-  const getFontSizeLabel = () => {
-    if (fontSizeLevel === 'normal') return 'Cỡ chữ: Chuẩn';
-    if (fontSizeLevel === 'large') return 'Cỡ chữ: To (+15%)';
-    return 'Cỡ chữ: Trình chiếu (+30%)';
-  };
-
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 flex items-center justify-between gap-3">
@@ -124,17 +114,38 @@ export const Header: React.FC<Props> = ({
           </button>
         </div>
 
-        {/* Right: Controls (Teacher mode, Font size, Fullscreen) */}
+        {/* Right: Controls (Font size controls, Teacher mode, Fullscreen) */}
         <div className="flex items-center gap-2">
-          {/* Font Size button */}
-          <button
-            onClick={cycleFontSize}
-            className="p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-all flex items-center gap-1.5 text-xs font-bold cursor-pointer"
-            title={getFontSizeLabel()}
-          >
-            <Type size={16} />
-            <span className="hidden xl:inline">{getFontSizeLabel()}</span>
-          </button>
+          {/* Nút TĂNG - GIẢM KÍCH CỠ CHỮ (A- [100%] A+) */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-2xs">
+            <button
+              onClick={onDecreaseFontSize}
+              disabled={fontSizePercent <= 85}
+              className="px-2 py-1 sm:px-2.5 sm:py-1 rounded-xl bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 border border-slate-200 disabled:opacity-30 disabled:pointer-events-none transition-all text-xs font-black cursor-pointer flex items-center gap-0.5"
+              title="Giảm kích cỡ chữ (A-)"
+            >
+              <span className="text-xs">A</span>
+              <span className="text-[10px] font-bold">−</span>
+            </button>
+
+            <button
+              onClick={onResetFontSize}
+              className="px-2 sm:px-2.5 py-1 text-xs font-black text-slate-800 hover:text-indigo-600 transition-colors cursor-pointer"
+              title="Cỡ chữ hiện tại. Bấm để đặt lại chuẩn 100%"
+            >
+              <span>{fontSizePercent}%</span>
+            </button>
+
+            <button
+              onClick={onIncreaseFontSize}
+              disabled={fontSizePercent >= 160}
+              className="px-2 py-1 sm:px-2.5 sm:py-1 rounded-xl bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 border border-slate-200 disabled:opacity-30 disabled:pointer-events-none transition-all text-xs font-black cursor-pointer flex items-center gap-0.5"
+              title="Tăng kích cỡ chữ (A+)"
+            >
+              <span className="text-sm">A</span>
+              <span className="text-[11px] font-bold">+</span>
+            </button>
+          </div>
 
           {/* Teacher Mode Toggle */}
           <button

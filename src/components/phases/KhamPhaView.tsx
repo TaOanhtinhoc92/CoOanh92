@@ -18,6 +18,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { TimelineVisualizer } from '../activities/TimelineVisualizer';
+import { ItemMediaAttachment } from '../activities/ItemMediaAttachment';
 
 interface Props {
   data: KhamPhaItem[] | KhamPhaPhase | any;
@@ -202,6 +203,14 @@ export const KhamPhaView: React.FC<Props> = ({
                     📌 <strong>Tình huống SGK:</strong> {item.context}
                   </div>
                 )}
+
+                {/* Hình ảnh / Video / Link quan sát cho nội dung này */}
+                <ItemMediaAttachment
+                  periodId={periodId}
+                  itemId={item.id}
+                  itemTitle={item.title}
+                  itemTask={item.task}
+                />
 
                 {/* Guiding Questions for Thinking & Discussion */}
                 {item.guidingQuestions && item.guidingQuestions.length > 0 && (
@@ -467,6 +476,14 @@ export const KhamPhaView: React.FC<Props> = ({
               ))}
             </div>
           )}
+
+          {/* Hình ảnh / Video quan sát SGK */}
+          <ItemMediaAttachment
+            periodId={periodId}
+            itemId="kham_pha_main"
+            itemTitle={data.title}
+            itemTask={data.tasks?.join(' ')}
+          />
 
           {data.conclusion && (
             <div className="pt-2">
