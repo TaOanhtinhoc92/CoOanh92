@@ -22,7 +22,7 @@ import {
   Target,
   PackageCheck,
   CheckCircle,
-  Lightbulb,
+  HelpCircle,
   FileText
 } from 'lucide-react';
 
@@ -32,9 +32,8 @@ interface Props {
 }
 
 export const GiaoAnView: React.FC<Props> = ({ period, lesson }) => {
-  const storageKey = `giao_an_custom_${period.id}`;
+  const storageKey = `khbd_chuan_2345_${period.id}`;
 
-  // Initial loading from localStorage or generating default
   const [giaoAn, setGiaoAn] = useState<GiaoAnData>(() => {
     try {
       const saved = localStorage.getItem(storageKey);
@@ -42,7 +41,7 @@ export const GiaoAnView: React.FC<Props> = ({ period, lesson }) => {
         return JSON.parse(saved);
       }
     } catch (e) {
-      console.error('Lỗi khi đọc giáo án từ bộ nhớ:', e);
+      console.error('Lỗi khi đọc KHBD từ bộ nhớ:', e);
     }
     return generateDefaultGiaoAn(period, lesson);
   });
@@ -102,30 +101,37 @@ export const GiaoAnView: React.FC<Props> = ({ period, lesson }) => {
 
   // Copy text to clipboard
   const handleCopyText = () => {
-    let text = `KẾ HOẠCH BÀI DẠY - ${giaoAn.subject.toUpperCase()}\n`;
-    text += `BÀI: ${giaoAn.lessonTitle.toUpperCase()}\n`;
-    text += `Tiết ${giaoAn.periodNumber}: ${giaoAn.periodTitle} (${giaoAn.sgkPages}) - ${giaoAn.timeAllocation}\n`;
-    text += `Trường: ${giaoAn.schoolName} | Lớp: ${giaoAn.className} | GV: ${giaoAn.teacherName} | Ngày dạy: ${giaoAn.teachingDate}\n\n`;
+    let text = `${giaoAn.headerTitle}\n`;
+    text += `${giaoAn.dayOfWeek}, ${giaoAn.teachingDate}\n`;
+    text += `${giaoAn.subjectName}\n`;
+    text += `${giaoAn.lessonTitle}\n\n`;
 
-    text += `I. YÊU CẦU CẦN ĐẠT:\n`;
+    text += `I. YÊU CẦU CẦN ĐẠT\n`;
     text += `1. Năng lực đặc thù:\n${giaoAn.specificCompetencies.map(c => `• ${c}`).join('\n')}\n`;
     text += `2. Năng lực chung:\n${giaoAn.generalCompetencies.map(c => `• ${c}`).join('\n')}\n`;
     text += `3. Phẩm chất:\n${giaoAn.qualities.map(c => `• ${c}`).join('\n')}\n\n`;
 
-    text += `II. ĐỒ DÙNG DẠY HỌC:\n`;
-    text += `1. Giáo viên:\n${giaoAn.teacherMaterials.map(m => `• ${m}`).join('\n')}\n`;
-    text += `2. Học sinh:\n${giaoAn.studentMaterials.map(m => `• ${m}`).join('\n')}\n\n`;
+    text += `II. ĐỒ DÙNG DẠY HỌC\n`;
+    text += `(Chỉ ghi dụng cụ đặc thù phục vụ cho tiết dạy. Không ghi những ĐDDH hay dụng cụ sử dụng thường ngày như: thước, bảng, phấn, SGK, SGV, tài liệu, PPT...)\n`;
+    text += `- Giáo viên:\n${giaoAn.teacherSpecialAids.map(m => `• ${m}`).join('\n')}\n`;
+    text += `- Học sinh:\n${giaoAn.studentSpecialAids.map(m => `• ${m}`).join('\n')}\n\n`;
 
-    text += `III. CÁC HOẠT ĐỘNG DẠY HỌC CHỦ YẾU:\n`;
+    text += `III. CÁC HOẠT ĐỘNG DẠY HỌC CHỦ YẾU\n`;
     giaoAn.activities.forEach((act) => {
-      text += `\n--- ${act.name} (${act.duration}) ---\n`;
-      text += `* Mục tiêu: ${act.objective}\n`;
-      text += `* Hoạt động của GV:\n${act.teacherActivities.map(a => `  • ${a}`).join('\n')}\n`;
-      text += `* Hoạt động của HS:\n${act.studentActivities.map(a => `  - ${a}`).join('\n')}\n`;
-      if (act.product) text += `* Sản phẩm: ${act.product}\n`;
+      text += `\n=== ${act.title} ===\n`;
+      if (act.subSteps && act.subSteps.length > 0) {
+        act.subSteps.forEach((step) => {
+          text += `\n${step.title}\n`;
+          text += `[Hoạt động của giáo viên]:\n${step.teacherText.map(t => `  • ${t}`).join('\n')}\n`;
+          text += `[Hoạt động của học sinh]:\n${step.studentText.map(s => `  - ${s}`).join('\n')}\n`;
+        });
+      } else {
+        text += `[Hoạt động của giáo viên]:\n${(act.teacherActionDirect || []).map(t => `  • ${t}`).join('\n')}\n`;
+        text += `[Hoạt động của học sinh]:\n${(act.studentActionDirect || []).map(s => `  - ${s}`).join('\n')}\n`;
+      }
     });
 
-    text += `\nIV. ĐIỀU CHỈNH SAU BÀI DẠY:\n${giaoAn.postLessonNotes || 'Không có'}\n`;
+    text += `\nIV. ĐIỀU CHỈNH SAU BÀI DẠY (nếu có)\n${giaoAn.postLessonNotes || 'Không có'}\n`;
 
     navigator.clipboard.writeText(text).then(() => {
       setIsCopied(true);
@@ -133,57 +139,54 @@ export const GiaoAnView: React.FC<Props> = ({ period, lesson }) => {
     });
   };
 
-  // Helper updater for arrays
-  const updateArrayField = (
-    fieldName: 'specificCompetencies' | 'generalCompetencies' | 'qualities' | 'teacherMaterials' | 'studentMaterials',
-    index: number,
+  // Array item updater
+  const updateArrayItem = (
+    field: 'specificCompetencies' | 'generalCompetencies' | 'qualities' | 'teacherSpecialAids' | 'studentSpecialAids',
+    idx: number,
     value: string
   ) => {
-    const arr = [...giaoAn[fieldName]];
-    arr[index] = value;
-    setGiaoAn({ ...giaoAn, [fieldName]: arr });
+    const list = [...giaoAn[field]];
+    list[idx] = value;
+    setGiaoAn({ ...giaoAn, [field]: list });
   };
 
   const addArrayItem = (
-    fieldName: 'specificCompetencies' | 'generalCompetencies' | 'qualities' | 'teacherMaterials' | 'studentMaterials'
+    field: 'specificCompetencies' | 'generalCompetencies' | 'qualities' | 'teacherSpecialAids' | 'studentSpecialAids'
   ) => {
-    setGiaoAn({ ...giaoAn, [fieldName]: [...giaoAn[fieldName], ''] });
+    setGiaoAn({ ...giaoAn, [field]: [...giaoAn[field], ''] });
   };
 
   const removeArrayItem = (
-    fieldName: 'specificCompetencies' | 'generalCompetencies' | 'qualities' | 'teacherMaterials' | 'studentMaterials',
-    index: number
+    field: 'specificCompetencies' | 'generalCompetencies' | 'qualities' | 'teacherSpecialAids' | 'studentSpecialAids',
+    idx: number
   ) => {
-    const arr = [...giaoAn[fieldName]];
-    arr.splice(index, 1);
-    setGiaoAn({ ...giaoAn, [fieldName]: arr });
+    const list = [...giaoAn[field]];
+    list.splice(idx, 1);
+    setGiaoAn({ ...giaoAn, [field]: list });
   };
 
   return (
     <div className="space-y-6">
-      {/* Header banner */}
+      {/* Top Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden border border-slate-700">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <div className="flex items-center gap-2.5 text-xs font-black uppercase tracking-widest bg-amber-500/20 text-amber-300 w-fit px-3.5 py-1.5 rounded-full border border-amber-500/30">
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-amber-500/20 text-amber-300 w-fit px-3.5 py-1.5 rounded-full border border-amber-500/30">
             <GraduationCap size={16} />
-            <span>Kế hoạch bài dạy (Giáo án Công văn 2345)</span>
+            <span>Khung Kế Hoạch Bài Dạy Chuẩn Mẫu</span>
           </div>
 
           <span className="text-xs font-medium text-emerald-300 bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-500/30 flex items-center gap-1.5">
             <Sparkles size={13} />
-            <span>Hệ thống tự động biên soạn chuẩn CT GDPT 2018</span>
+            <span>Làm rõ 4 thao tác a, b, c, d • Hỏi - Đáp cụ thể (Người khác có thể dạy thay)</span>
           </span>
         </div>
 
         <div className="space-y-1">
-          <div className="text-sm font-semibold text-slate-300">
-            {lesson.topic} • {lesson.title}
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-            Tiết {period.periodNumber}: {giaoAn.periodTitle}
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white uppercase">
+            {giaoAn.lessonTitle}
           </h2>
-          <p className="text-xs text-slate-400">
-            {giaoAn.sgkPages} • {giaoAn.timeAllocation}
+          <p className="text-xs text-slate-300">
+            {giaoAn.subjectName} • {giaoAn.sgkPages}
           </p>
         </div>
       </div>
@@ -194,19 +197,19 @@ export const GiaoAnView: React.FC<Props> = ({ period, lesson }) => {
           {/* Nút Tải Word */}
           <button
             onClick={handleDownloadWord}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow transition-all cursor-pointer"
-            title="Tải về file Microsoft Word (.doc) để chỉnh sửa và in ấn"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow transition-all cursor-pointer"
+            title="Tải về file Word (.doc) đúng chuẩn mẫu để nộp chuyên môn hoặc chỉnh sửa"
           >
             <Download size={16} />
             <span>Tải về file Word (.doc)</span>
           </button>
 
-          {/* Nút Chỉnh sửa / Xem trước */}
+          {/* Nút Chỉnh sửa / Xem bản in */}
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition-all cursor-pointer"
-              title="Chỉnh sửa nội dung giáo án trực tiếp trên ứng dụng"
+              title="Chỉnh sửa trực tiếp nội dung giáo án"
             >
               <Edit3 size={16} />
               <span>Chỉnh sửa giáo án</span>
@@ -234,7 +237,7 @@ export const GiaoAnView: React.FC<Props> = ({ period, lesson }) => {
           <button
             onClick={handleResetToDefault}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer border border-slate-200"
-            title="Tự động biên soạn lại từ đầu theo chuẩn của bài học"
+            title="Tự động biên soạn lại từ đầu theo chuẩn mẫu"
           >
             <RotateCcw size={14} />
             <span>Tự tạo lại mặc định</span>
@@ -264,272 +267,224 @@ export const GiaoAnView: React.FC<Props> = ({ period, lesson }) => {
         </div>
       </div>
 
-      {/* Save success toast */}
+      {/* Save Toast */}
       {saveSuccessNotice && (
         <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-xs font-bold text-emerald-900 flex items-center gap-2 animate-fadeIn">
           <CheckCircle size={16} className="text-emerald-600" />
-          <span>Giáo án đã được lưu thành công vào trình duyệt của thầy/cô!</span>
+          <span>Kế hoạch bài dạy đã được lưu thành công vào máy của thầy/cô!</span>
         </div>
       )}
 
-      {/* Main Lesson Plan Document Display */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-10 shadow-sm space-y-8 print:p-0 print:border-none print:shadow-none font-sans">
+      {/* Standard Lesson Plan Document Layout */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-12 shadow-sm space-y-7 print:p-0 print:border-none print:shadow-none font-serif text-slate-900 leading-relaxed">
         
-        {/* Document Header (School, Class, Teacher, Date) */}
-        <div className="border-b border-slate-200 pb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div className="space-y-2">
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase block mb-0.5">Tên trường:</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={giaoAn.schoolName}
-                    onChange={(e) => setGiaoAn({ ...giaoAn, schoolName: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs sm:text-sm font-bold bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                  />
-                ) : (
-                  <p className="font-bold text-slate-800">{giaoAn.schoolName}</p>
-                )}
-              </div>
+        {/* Header exact pattern */}
+        <div className="text-center space-y-1.5 border-b border-slate-200 pb-5">
+          <h1 className="text-lg sm:text-xl font-bold uppercase tracking-tight text-slate-900">
+            {giaoAn.headerTitle}
+          </h1>
 
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase block mb-0.5">Lớp giảng dạy:</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={giaoAn.className}
-                    onChange={(e) => setGiaoAn({ ...giaoAn, className: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs sm:text-sm font-bold bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-                  />
-                ) : (
-                  <p className="font-bold text-slate-800">{giaoAn.className}</p>
-                )}
+          <div className="text-sm italic text-slate-700 flex items-center justify-center gap-2">
+            {isEditing ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={giaoAn.dayOfWeek}
+                  onChange={(e) => setGiaoAn({ ...giaoAn, dayOfWeek: e.target.value })}
+                  placeholder="Thứ ....."
+                  className="px-2 py-0.5 text-xs bg-slate-50 border border-slate-300 rounded font-sans"
+                />
+                <span>,</span>
+                <input
+                  type="text"
+                  value={giaoAn.teachingDate}
+                  onChange={(e) => setGiaoAn({ ...giaoAn, teachingDate: e.target.value })}
+                  placeholder="ngày ..... tháng ..... năm 202..."
+                  className="px-2 py-0.5 text-xs bg-slate-50 border border-slate-300 rounded font-sans"
+                />
               </div>
-            </div>
-
-            <div className="space-y-2 sm:text-right">
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase block mb-0.5">Giáo viên giảng dạy:</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={giaoAn.teacherName}
-                    onChange={(e) => setGiaoAn({ ...giaoAn, teacherName: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs sm:text-sm font-bold bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 sm:text-right"
-                  />
-                ) : (
-                  <p className="font-bold text-slate-800">{giaoAn.teacherName}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase block mb-0.5">Ngày giảng dạy:</label>
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={giaoAn.teachingDate}
-                    onChange={(e) => setGiaoAn({ ...giaoAn, teachingDate: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs sm:text-sm font-bold bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 sm:text-right"
-                  />
-                ) : (
-                  <p className="font-medium text-slate-700 italic">Ngày dạy: {giaoAn.teachingDate}</p>
-                )}
-              </div>
-            </div>
+            ) : (
+              <span>{giaoAn.dayOfWeek}, {giaoAn.teachingDate}</span>
+            )}
           </div>
 
-          <div className="text-center mt-6 space-y-1">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tight">
-              KẾ HOẠCH BÀI DẠY
-            </h1>
-            <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">
-              {giaoAn.subject}
-            </p>
-            <h2 className="text-base sm:text-lg font-black text-slate-800">
-              BÀI: {giaoAn.lessonTitle.toUpperCase()}
-            </h2>
-            <p className="text-xs sm:text-sm font-semibold text-slate-600">
-              Tiết {giaoAn.periodNumber}: {giaoAn.periodTitle} ({giaoAn.sgkPages}) • {giaoAn.timeAllocation}
-            </p>
+          <div className="text-sm font-bold text-slate-800">
+            {giaoAn.subjectName}
+          </div>
+
+          <div className="text-base sm:text-lg font-bold text-slate-950 uppercase pt-1">
+            {giaoAn.lessonTitle}
           </div>
         </div>
 
         {/* I. YÊU CẦU CẦN ĐẠT */}
-        <div className="p-6 rounded-2xl bg-indigo-50/60 border border-indigo-200/80 space-y-4">
-          <div className="flex items-center gap-2 text-xs sm:text-sm font-black text-indigo-950 uppercase tracking-wider">
-            <Target size={18} className="text-indigo-600" />
-            <span>I. Yêu cầu cần đạt (Mục tiêu bài học theo chuẩn CT GDPT 2018)</span>
-          </div>
+        <div className="space-y-3">
+          <h2 className="text-base font-bold uppercase text-slate-900">
+            I. YÊU CẦU CẦN ĐẠT
+          </h2>
 
           {/* 1. Năng lực đặc thù */}
-          <div className="space-y-2">
+          <div className="space-y-1.5 pl-2">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-indigo-900 uppercase">1. Năng lực đặc thù:</h4>
+              <h3 className="font-bold text-sm text-slate-900">1. Năng lực đặc thù:</h3>
               {isEditing && (
                 <button
                   type="button"
                   onClick={() => addArrayItem('specificCompetencies')}
-                  className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 font-sans cursor-pointer"
                 >
-                  <Plus size={13} /> Thêm mục tiêu
+                  <Plus size={13} /> Thêm
                 </button>
               )}
             </div>
-
-            <div className="space-y-2">
+            <ul className="list-disc pl-5 space-y-1 text-sm text-slate-800">
               {giaoAn.specificCompetencies.map((item, idx) => (
-                <div key={idx} className="flex items-start gap-2.5">
-                  <CheckCircle size={16} className="text-indigo-600 shrink-0 mt-1" />
+                <li key={idx}>
                   {isEditing ? (
-                    <div className="flex items-center gap-1.5 flex-1">
+                    <div className="flex items-center gap-1.5 my-1">
                       <input
                         type="text"
                         value={item}
-                        onChange={(e) => updateArrayField('specificCompetencies', idx, e.target.value)}
-                        className="w-full px-3 py-1 text-xs bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                        onChange={(e) => updateArrayItem('specificCompetencies', idx, e.target.value)}
+                        className="w-full px-2 py-1 text-xs bg-slate-50 border border-slate-300 rounded font-sans"
                       />
                       <button
                         type="button"
                         onClick={() => removeArrayItem('specificCompetencies', idx)}
-                        className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                        className="text-rose-500 p-0.5 cursor-pointer font-sans"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   ) : (
-                    <p className="text-xs sm:text-sm text-slate-800 leading-relaxed">{item}</p>
+                    <span>{item}</span>
                   )}
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
 
           {/* 2. Năng lực chung */}
-          <div className="space-y-2 pt-2 border-t border-indigo-100">
+          <div className="space-y-1.5 pl-2">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-indigo-900 uppercase">2. Năng lực chung:</h4>
+              <h3 className="font-bold text-sm text-slate-900">2. Năng lực chung:</h3>
               {isEditing && (
                 <button
                   type="button"
                   onClick={() => addArrayItem('generalCompetencies')}
-                  className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 font-sans cursor-pointer"
                 >
-                  <Plus size={13} /> Thêm năng lực
+                  <Plus size={13} /> Thêm
                 </button>
               )}
             </div>
-
-            <div className="space-y-2">
+            <ul className="list-disc pl-5 space-y-1 text-sm text-slate-800">
               {giaoAn.generalCompetencies.map((item, idx) => (
-                <div key={idx} className="flex items-start gap-2.5">
-                  <CheckCircle size={16} className="text-indigo-600 shrink-0 mt-1" />
+                <li key={idx}>
                   {isEditing ? (
-                    <div className="flex items-center gap-1.5 flex-1">
+                    <div className="flex items-center gap-1.5 my-1">
                       <input
                         type="text"
                         value={item}
-                        onChange={(e) => updateArrayField('generalCompetencies', idx, e.target.value)}
-                        className="w-full px-3 py-1 text-xs bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                        onChange={(e) => updateArrayItem('generalCompetencies', idx, e.target.value)}
+                        className="w-full px-2 py-1 text-xs bg-slate-50 border border-slate-300 rounded font-sans"
                       />
                       <button
                         type="button"
                         onClick={() => removeArrayItem('generalCompetencies', idx)}
-                        className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                        className="text-rose-500 p-0.5 cursor-pointer font-sans"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   ) : (
-                    <p className="text-xs sm:text-sm text-slate-800 leading-relaxed">{item}</p>
+                    <span>{item}</span>
                   )}
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
 
           {/* 3. Phẩm chất */}
-          <div className="space-y-2 pt-2 border-t border-indigo-100">
+          <div className="space-y-1.5 pl-2">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-indigo-900 uppercase">3. Phẩm chất chủ yếu:</h4>
+              <h3 className="font-bold text-sm text-slate-900">3. Phẩm chất:</h3>
               {isEditing && (
                 <button
                   type="button"
                   onClick={() => addArrayItem('qualities')}
-                  className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 font-sans cursor-pointer"
                 >
-                  <Plus size={13} /> Thêm phẩm chất
+                  <Plus size={13} /> Thêm
                 </button>
               )}
             </div>
-
-            <div className="space-y-2">
+            <ul className="list-disc pl-5 space-y-1 text-sm text-slate-800">
               {giaoAn.qualities.map((item, idx) => (
-                <div key={idx} className="flex items-start gap-2.5">
-                  <CheckCircle size={16} className="text-indigo-600 shrink-0 mt-1" />
+                <li key={idx}>
                   {isEditing ? (
-                    <div className="flex items-center gap-1.5 flex-1">
+                    <div className="flex items-center gap-1.5 my-1">
                       <input
                         type="text"
                         value={item}
-                        onChange={(e) => updateArrayField('qualities', idx, e.target.value)}
-                        className="w-full px-3 py-1 text-xs bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                        onChange={(e) => updateArrayItem('qualities', idx, e.target.value)}
+                        className="w-full px-2 py-1 text-xs bg-slate-50 border border-slate-300 rounded font-sans"
                       />
                       <button
                         type="button"
                         onClick={() => removeArrayItem('qualities', idx)}
-                        className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                        className="text-rose-500 p-0.5 cursor-pointer font-sans"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   ) : (
-                    <p className="text-xs sm:text-sm text-slate-800 leading-relaxed">{item}</p>
+                    <span>{item}</span>
                   )}
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         </div>
 
         {/* II. ĐỒ DÙNG DẠY HỌC */}
-        <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
-          <div className="flex items-center gap-2 text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wider">
-            <PackageCheck size={18} className="text-sky-600" />
-            <span>II. Đồ dùng & Thiết bị dạy học</span>
-          </div>
+        <div className="space-y-2.5">
+          <h2 className="text-base font-bold uppercase text-slate-900">
+            II. ĐỒ DÙNG DẠY HỌC
+          </h2>
+          <p className="italic text-xs text-slate-600 bg-amber-50/80 p-2.5 rounded-lg border border-amber-200">
+            (Chỉ ghi dụng cụ đặc thù phục vụ cho tiết dạy. Không ghi những ĐDDH hay dụng cụ sử dụng thường ngày như: thước, bảng, phấn, SGK, SGV, tài liệu, PPT...)
+          </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Giáo viên */}
-            <div className="p-4 rounded-xl bg-white border border-slate-200 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-900 uppercase">1. Giáo viên:</span>
+          <div className="pl-2 space-y-2">
+            <div>
+              <div className="flex items-center justify-between font-bold text-sm text-slate-900">
+                <span>- Giáo viên:</span>
                 {isEditing && (
                   <button
                     type="button"
-                    onClick={() => addArrayItem('teacherMaterials')}
-                    className="text-[11px] font-bold text-sky-600 hover:text-sky-800 flex items-center gap-1 cursor-pointer"
+                    onClick={() => addArrayItem('teacherSpecialAids')}
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 font-sans cursor-pointer"
                   >
                     <Plus size={13} /> Thêm
                   </button>
                 )}
               </div>
-              <div className="space-y-1.5">
-                {giaoAn.teacherMaterials.map((item, idx) => (
-                  <div key={idx} className="flex items-start gap-2 text-xs sm:text-sm text-slate-700">
-                    <span className="text-sky-600 font-bold">•</span>
+              <ul className="list-disc pl-5 space-y-1 text-sm text-slate-800 mt-1">
+                {giaoAn.teacherSpecialAids.map((item, idx) => (
+                  <li key={idx}>
                     {isEditing ? (
-                      <div className="flex items-center gap-1 flex-1">
+                      <div className="flex items-center gap-1.5 my-1">
                         <input
                           type="text"
                           value={item}
-                          onChange={(e) => updateArrayField('teacherMaterials', idx, e.target.value)}
-                          className="w-full px-2 py-1 text-xs bg-slate-50 border border-slate-300 rounded"
+                          onChange={(e) => updateArrayItem('teacherSpecialAids', idx, e.target.value)}
+                          className="w-full px-2 py-1 text-xs bg-slate-50 border border-slate-300 rounded font-sans"
                         />
                         <button
                           type="button"
-                          onClick={() => removeArrayItem('teacherMaterials', idx)}
-                          className="text-rose-500 p-0.5"
+                          onClick={() => removeArrayItem('teacherSpecialAids', idx)}
+                          className="text-rose-500 p-0.5 cursor-pointer font-sans"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -537,41 +492,39 @@ export const GiaoAnView: React.FC<Props> = ({ period, lesson }) => {
                     ) : (
                       <span>{item}</span>
                     )}
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
 
-            {/* Học sinh */}
-            <div className="p-4 rounded-xl bg-white border border-slate-200 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-900 uppercase">2. Học sinh:</span>
+            <div>
+              <div className="flex items-center justify-between font-bold text-sm text-slate-900">
+                <span>- Học sinh:</span>
                 {isEditing && (
                   <button
                     type="button"
-                    onClick={() => addArrayItem('studentMaterials')}
-                    className="text-[11px] font-bold text-sky-600 hover:text-sky-800 flex items-center gap-1 cursor-pointer"
+                    onClick={() => addArrayItem('studentSpecialAids')}
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 font-sans cursor-pointer"
                   >
                     <Plus size={13} /> Thêm
                   </button>
                 )}
               </div>
-              <div className="space-y-1.5">
-                {giaoAn.studentMaterials.map((item, idx) => (
-                  <div key={idx} className="flex items-start gap-2 text-xs sm:text-sm text-slate-700">
-                    <span className="text-sky-600 font-bold">•</span>
+              <ul className="list-disc pl-5 space-y-1 text-sm text-slate-800 mt-1">
+                {giaoAn.studentSpecialAids.map((item, idx) => (
+                  <li key={idx}>
                     {isEditing ? (
-                      <div className="flex items-center gap-1 flex-1">
+                      <div className="flex items-center gap-1.5 my-1">
                         <input
                           type="text"
                           value={item}
-                          onChange={(e) => updateArrayField('studentMaterials', idx, e.target.value)}
-                          className="w-full px-2 py-1 text-xs bg-slate-50 border border-slate-300 rounded"
+                          onChange={(e) => updateArrayItem('studentSpecialAids', idx, e.target.value)}
+                          className="w-full px-2 py-1 text-xs bg-slate-50 border border-slate-300 rounded font-sans"
                         />
                         <button
                           type="button"
-                          onClick={() => removeArrayItem('studentMaterials', idx)}
-                          className="text-rose-500 p-0.5"
+                          onClick={() => removeArrayItem('studentSpecialAids', idx)}
+                          className="text-rose-500 p-0.5 cursor-pointer font-sans"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -579,104 +532,159 @@ export const GiaoAnView: React.FC<Props> = ({ period, lesson }) => {
                     ) : (
                       <span>{item}</span>
                     )}
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           </div>
         </div>
 
-        {/* III. TIẾN TRÌNH CÁC HOẠT ĐỘNG DẠY HỌC CHỦ YẾU */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wider">
-            <BookOpen size={18} className="text-indigo-600" />
-            <span>III. Các hoạt động dạy học chủ yếu (Bảng tiến trình sư phạm)</span>
+        {/* III. CÁC HOẠT ĐỘNG DẠY HỌC CHỦ YẾU */}
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <h2 className="text-base font-bold uppercase text-slate-900">
+              III. CÁC HOẠT ĐỘNG DẠY HỌC CHỦ YẾU
+            </h2>
+            <span className="text-xs italic text-blue-700 font-sans">
+              (Bảng 2 cột: Cột hoạt động của giáo viên và Cột hoạt động của học sinh)
+            </span>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-slate-300">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto rounded-xl border border-slate-400">
+            <table className="w-full border-collapse text-left text-sm">
               <thead>
-                <tr className="bg-slate-100 text-slate-900 border-b border-slate-300 text-xs sm:text-sm font-extrabold">
-                  <th className="p-3.5 w-1/2 border-r border-slate-300 text-center uppercase tracking-wide">
-                    Hoạt động của Giáo viên
+                <tr className="bg-slate-100 text-slate-900 border-b border-slate-400">
+                  <th className="p-3 w-1/2 border-r border-slate-400 text-center font-bold uppercase">
+                    Hoạt động của giáo viên
                   </th>
-                  <th className="p-3.5 w-1/2 text-center uppercase tracking-wide">
-                    Hoạt động của Học sinh
+                  <th className="p-3 w-1/2 text-center font-bold uppercase">
+                    Hoạt động của học sinh
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody className="divide-y divide-slate-300">
                 {giaoAn.activities.map((act, actIdx) => (
                   <React.Fragment key={act.id || actIdx}>
-                    {/* Activity Title Banner Row */}
-                    <tr className="bg-blue-50/70 border-y border-blue-200">
-                      <td colSpan={2} className="p-3.5">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                          <span className="font-black text-xs sm:text-sm text-blue-950">
-                            {act.name} ({act.duration})
-                          </span>
-                          <span className="text-[11px] font-semibold text-slate-600 italic">
-                            * Mục tiêu: {act.objective}
-                          </span>
-                        </div>
+                    {/* Activity Title Banner */}
+                    <tr className="bg-slate-200/90 font-bold border-y border-slate-400">
+                      <td colSpan={2} className="p-3 text-slate-950">
+                        <div className="text-sm uppercase">{act.title}</div>
                       </td>
                     </tr>
 
-                    {/* Teacher & Student Activities Content Row */}
-                    <tr className="hover:bg-slate-50/50 transition-colors">
-                      {/* Cột Giáo viên */}
-                      <td className="p-4 align-top border-r border-slate-200 space-y-2">
-                        {act.teacherActivities.map((step, sIdx) => (
-                          <div key={sIdx} className="flex items-start gap-2 text-xs sm:text-sm text-slate-800 leading-relaxed">
-                            <span className="text-blue-600 font-bold shrink-0">•</span>
-                            {isEditing ? (
-                              <textarea
-                                value={step}
-                                rows={2}
-                                onChange={(e) => {
-                                  const newActs = [...giaoAn.activities];
-                                  newActs[actIdx].teacherActivities[sIdx] = e.target.value;
-                                  setGiaoAn({ ...giaoAn, activities: newActs });
-                                }}
-                                className="w-full p-2 text-xs bg-white border border-slate-300 rounded focus:ring-2 focus:ring-blue-400"
-                              />
-                            ) : (
-                              <span>{step}</span>
-                            )}
-                          </div>
-                        ))}
-                      </td>
+                    {/* 4 Thao tác a, b, c, d */}
+                    {act.subSteps && act.subSteps.length > 0 ? (
+                      act.subSteps.map((step, sIdx) => (
+                        <tr key={sIdx} className="hover:bg-slate-50/40">
+                          {/* Cột Giáo viên */}
+                          <td className="p-3 align-top border-r border-slate-300 space-y-1.5">
+                            <div className="font-bold italic text-blue-900 text-xs sm:text-sm">
+                              {step.title}
+                            </div>
+                            <div className="space-y-1.5 pl-1">
+                              {step.teacherText.map((tText, tIdx) => (
+                                <div key={tIdx} className="text-xs sm:text-sm text-slate-800">
+                                  {isEditing ? (
+                                    <textarea
+                                      rows={2}
+                                      value={tText}
+                                      onChange={(e) => {
+                                        const newActs = [...giaoAn.activities];
+                                        if (newActs[actIdx].subSteps) {
+                                          newActs[actIdx].subSteps![sIdx].teacherText[tIdx] = e.target.value;
+                                          setGiaoAn({ ...giaoAn, activities: newActs });
+                                        }
+                                      }}
+                                      className="w-full p-1.5 text-xs bg-white border border-slate-300 rounded font-sans"
+                                    />
+                                  ) : (
+                                    <p className="leading-snug">{tText.startsWith('•') || tText.startsWith('*') ? tText : `• ${tText}`}</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
 
-                      {/* Cột Học sinh */}
-                      <td className="p-4 align-top space-y-2">
-                        {act.studentActivities.map((step, sIdx) => (
-                          <div key={sIdx} className="flex items-start gap-2 text-xs sm:text-sm text-slate-800 leading-relaxed">
-                            <span className="text-emerald-600 font-bold shrink-0">-</span>
-                            {isEditing ? (
-                              <textarea
-                                value={step}
-                                rows={2}
-                                onChange={(e) => {
-                                  const newActs = [...giaoAn.activities];
-                                  newActs[actIdx].studentActivities[sIdx] = e.target.value;
-                                  setGiaoAn({ ...giaoAn, activities: newActs });
-                                }}
-                                className="w-full p-2 text-xs bg-white border border-slate-300 rounded focus:ring-2 focus:ring-emerald-400"
-                              />
-                            ) : (
-                              <span>{step}</span>
-                            )}
+                          {/* Cột Học sinh - CÂU TRẢ LỜI CỤ THỂ */}
+                          <td className="p-3 align-top space-y-1.5">
+                            <div className="font-bold italic text-emerald-900 text-xs sm:text-sm opacity-0 select-none">
+                              {step.title}
+                            </div>
+                            <div className="space-y-1.5 pl-1">
+                              {step.studentText.map((sText, sIdx2) => (
+                                <div key={sIdx2} className="text-xs sm:text-sm text-slate-800">
+                                  {isEditing ? (
+                                    <textarea
+                                      rows={2}
+                                      value={sText}
+                                      onChange={(e) => {
+                                        const newActs = [...giaoAn.activities];
+                                        if (newActs[actIdx].subSteps) {
+                                          newActs[actIdx].subSteps![sIdx].studentText[sIdx2] = e.target.value;
+                                          setGiaoAn({ ...giaoAn, activities: newActs });
+                                        }
+                                      }}
+                                      className="w-full p-1.5 text-xs bg-white border border-slate-300 rounded font-sans"
+                                    />
+                                  ) : (
+                                    <p className="leading-snug">{sText.startsWith('•') || sText.startsWith('-') || sText.startsWith('*') ? sText : `- ${sText}`}</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      // Hoạt động 5: Nối tiếp (Dặn dò, nhận xét)
+                      <tr className="hover:bg-slate-50/40">
+                        <td className="p-3 align-top border-r border-slate-300 space-y-1.5">
+                          <div className="space-y-1 pl-1">
+                            {(act.teacherActionDirect || []).map((tText, tIdx) => (
+                              <div key={tIdx} className="text-xs sm:text-sm text-slate-800">
+                                {isEditing ? (
+                                  <textarea
+                                    rows={2}
+                                    value={tText}
+                                    onChange={(e) => {
+                                      const newActs = [...giaoAn.activities];
+                                      newActs[actIdx].teacherActionDirect![tIdx] = e.target.value;
+                                      setGiaoAn({ ...giaoAn, activities: newActs });
+                                    }}
+                                    className="w-full p-1.5 text-xs bg-white border border-slate-300 rounded font-sans"
+                                  />
+                                ) : (
+                                  <p className="leading-snug">{tText.startsWith('•') || tText.startsWith('1.') || tText.startsWith('2.') ? tText : `• ${tText}`}</p>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        </td>
 
-                        {/* Sản phẩm học tập */}
-                        {act.product && (
-                          <div className="pt-2 text-xs text-blue-900 bg-blue-50/60 p-2.5 rounded-lg border border-blue-100">
-                            <strong>* Sản phẩm dự kiến:</strong> {act.product}
+                        <td className="p-3 align-top space-y-1.5">
+                          <div className="space-y-1 pl-1">
+                            {(act.studentActionDirect || []).map((sText, sIdx) => (
+                              <div key={sIdx} className="text-xs sm:text-sm text-slate-800">
+                                {isEditing ? (
+                                  <textarea
+                                    rows={2}
+                                    value={sText}
+                                    onChange={(e) => {
+                                      const newActs = [...giaoAn.activities];
+                                      newActs[actIdx].studentActionDirect![sIdx] = e.target.value;
+                                      setGiaoAn({ ...giaoAn, activities: newActs });
+                                    }}
+                                    className="w-full p-1.5 text-xs bg-white border border-slate-300 rounded font-sans"
+                                  />
+                                ) : (
+                                  <p className="leading-snug">{sText.startsWith('•') || sText.startsWith('-') || sText.startsWith('1.') || sText.startsWith('2.') ? sText : `- ${sText}`}</p>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                        )}
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
+                    )}
                   </React.Fragment>
                 ))}
               </tbody>
@@ -684,42 +692,24 @@ export const GiaoAnView: React.FC<Props> = ({ period, lesson }) => {
           </div>
         </div>
 
-        {/* IV. ĐIỀU CHỈNH SAU BÀI DẠY */}
-        <div className="p-5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
-          <div className="text-xs sm:text-sm font-black text-amber-950 uppercase tracking-wider">
-            IV. Điều chỉnh sau bài dạy
-          </div>
+        {/* IV. ĐIỀU CHỈNH SAU BÀI DẠY (nếu có) */}
+        <div className="space-y-2 pt-2 border-t border-slate-200">
+          <h2 className="text-base font-bold uppercase text-slate-900">
+            IV. ĐIỀU CHỈNH SAU BÀI DẠY (nếu có)
+          </h2>
           {isEditing ? (
             <textarea
               rows={3}
               value={giaoAn.postLessonNotes}
               onChange={(e) => setGiaoAn({ ...giaoAn, postLessonNotes: e.target.value })}
-              placeholder="Ghi chú điều chỉnh sau giờ dạy thực tế trên lớp..."
-              className="w-full p-3 text-xs sm:text-sm bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500"
+              placeholder="Ghi nhận thực tế sau khi dạy..."
+              className="w-full p-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg font-sans"
             />
           ) : (
-            <p className="text-xs sm:text-sm text-slate-700 italic leading-relaxed">
-              {giaoAn.postLessonNotes || 'Ghi nhận thực tế sau tiết dạy (học sinh tiếp thu nhanh/chậm, cần bổ sung nội dung nào...).'}
+            <p className="text-xs sm:text-sm italic text-slate-600 leading-relaxed pl-2">
+              {giaoAn.postLessonNotes || '................................................................................................................................................................................................................................................................................................................................................................................................................'}
             </p>
           )}
-        </div>
-
-        {/* Signatures */}
-        <div className="pt-6 border-t border-slate-200">
-          <div className="grid grid-cols-2 gap-4 text-center text-xs sm:text-sm">
-            <div>
-              <p className="font-bold text-slate-900">TỔ TRƯỞNG CHUYÊN MÔN</p>
-              <p className="text-slate-500 italic text-[11px]">(Ký và ghi rõ họ tên)</p>
-              <div className="h-16" />
-            </div>
-
-            <div>
-              <p className="italic text-slate-500 text-[11px]">Ngày ...... tháng ...... năm 202...</p>
-              <p className="font-bold text-slate-900">GIÁO VIÊN SOẠN BÀI</p>
-              <p className="text-slate-500 italic text-[11px]">(Ký và ghi rõ họ tên)</p>
-              <div className="h-16" />
-            </div>
-          </div>
         </div>
 
       </div>
